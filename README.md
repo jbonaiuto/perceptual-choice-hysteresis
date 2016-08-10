@@ -1,5 +1,5 @@
 # perceptual-choice-hysteresis
-Simulation and analysis code for Bonaiuto, de Berker, Bestman "Neural hysteresis in competitive attractor models predicts changes in choice bias with non-invasive brain stimulation"
+Simulation and analysis code for Bonaiuto, de Berker, Bestmann "Neural hysteresis in competitive attractor models predicts changes in choice bias with non-invasive brain stimulation"
 
 Required python libraries and versions are listed in requirements.txt
 
