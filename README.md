@@ -10,17 +10,16 @@ Use
 inside a virtual environment (https://pypi.python.org/pypi/virtualenv) to install.
 
 
-To analyze human participant data run:
+From the src/python, run:
 
-    perceptchoice.experiment.analysis
+    python perceptchoice.experiment.analysis
 
+to analyze human participant data, or:
 
+    python perceptchoice.model.run
 
-To run model simulations run:
+to run model simulations, or:
 
-    perceptchoice.model.run
+    python perceptchoice.model.analysis
 
-
-To analyze model simulations run:
-
-    perceptchoice.model.analysis
+To analyze model simulations.
