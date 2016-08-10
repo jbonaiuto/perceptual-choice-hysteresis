@@ -10,7 +10,7 @@ Use
 inside a virtual environment (https://pypi.python.org/pypi/virtualenv) to install.
 
 
-From the src/python, run:
+From the src/python directory, run:
 
     python perceptchoice.experiment.analysis
 
