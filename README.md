@@ -3,7 +3,7 @@ Simulation and analysis code for Bonaiuto, de Berker, Bestmann "Neural hysteresi
 
 Required python libraries and versions are listed in requirements.txt
 
-Use
+Use pip (https://pypi.python.org/pypi/pip) to install the requirements:
 
     pip install -r requirements.txt
 
