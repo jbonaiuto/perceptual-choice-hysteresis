@@ -23,3 +23,5 @@ to run model simulations, or:
     python perceptchoice.model.analysis
 
 to analyze model simulations.
+
+Data are archived at http://dx.doi.org/10.5061/dryad.0n537
