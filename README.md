@@ -22,4 +22,4 @@ to run model simulations, or:
 
     python perceptchoice.model.analysis
 
-To analyze model simulations.
+to analyze model simulations.
