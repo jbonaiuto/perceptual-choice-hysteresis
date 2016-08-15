@@ -134,12 +134,20 @@ subject_sessions={
 
 
 class Subject:
+
     def __init__(self, data_dir, subj_id):
+        """
+        Initialize subject data
+        """
         self.data_dir=data_dir
         self.id=subj_id
+        self.session_data={}
 
     def read_data(self):
-        self.session_data={}
+        """
+        Read subject data
+        """
+        # Figure out sessions - look for data files with subject ID in start of the name
         sessions=[]
         for file_name in os.listdir(self.data_dir):
             if file_name.lower().endswith('.csv'):
@@ -150,26 +158,36 @@ class Subject:
                         sessions.append(session_date)
         sessions = sorted(sessions)
 
+        # Iterate through subject sessions
         for idx,session in enumerate(sessions):
+
+            # Look for session file
             for file_name in os.listdir(self.data_dir):
                 if file_name.lower().endswith('.csv'):
                     file_name_parts=file_name.split('.')
                     if file_name_parts[0].upper()==self.id:
-                        session_date=datetime.strptime(file_name_parts[1][:11],'%Y_%b_%d')
+                        session_date=datetime.strptime(file_name_parts[1][:11],'%Y_%b_%d')                    #
                         if session_date==session and not file_name_parts[2]=='training':
+
+                            # Figure out condition for this session
                             run_num=int(file_name_parts[2])
                             condition=subject_sessions[self.id][idx-1][run_num-1].replace('- ','').title().replace(' ','')
-                            #if condition in conditions:
+
+                            # Only need sham and stimulation conditions
                             if not condition=='Control':
                                 file=open(os.path.join(self.data_dir,file_name),'r')
 
+                                # Initialize trial data
                                 trial_data=[]
+                                # Initialize previous resp, RT and trial coherence
                                 last_resp=float('NaN')
                                 last_rt=float('NaN')
                                 last_coherence=float('NaN')
                                 for line_idx,line in enumerate(file):
                                     if line_idx>0:
                                         cols=line.split(',')
+
+                                        # Extract direction
                                         direction=int(cols[0])
                                         if direction==LEFT:
                                             direction=-1
@@ -177,17 +195,23 @@ class Subject:
                                             direction=1
                                         coherence=float(cols[1])
                                         correct=int(cols[2])
+                                        # Determine response based on whether or not correct and the direction
                                         resp=direction
                                         if correct<1:
                                             resp=direction*-1
+                                        # Convert RT to ms
                                         rt=float(cols[3])*1000.0
                                         trialIdx=line_idx-1
+                                        # Compute ITI
                                         iti=1000+1000-last_rt
+                                        # If a response was made
                                         if coherence in coherences and rt<=982:
                                             trial_data.append([trialIdx, direction, coherence, correct, resp, last_resp, rt, iti, last_coherence])
+                                        # Update last trial respnse, RT and coherence
                                         last_resp=resp
                                         last_rt=rt
                                         last_coherence=coherence
+                                # Remove outliers based on RT
                                 trial_data=np.array(trial_data)
                                 outliers=mdm_outliers(trial_data[:,6])
                                 trial_data=trial_data[np.setdiff1d(np.array(range(trial_data.shape[0])),np.array(outliers)),:]
