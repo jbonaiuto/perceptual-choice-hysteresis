@@ -320,8 +320,9 @@ class WTAMonitor():
 
             e_rate_0=self.monitors['excitatory_rate_0'].smooth_rate(width=5*ms)/hertz
             e_rate_1=self.monitors['excitatory_rate_1'].smooth_rate(width=5*ms)/hertz
-            i_rate=self.monitors['inhibitory_rate'].smooth_rate(width=5*ms)/hertz
-            plot_network_firing_rates(np.array([e_rate_0, e_rate_1]), i_rate, self.sim_params, self.network_params)
+            #i_rate=self.monitors['inhibitory_rate'].smooth_rate(width=5*ms)/hertz
+            #plot_network_firing_rates(np.array([e_rate_0, e_rate_1]), i_rate, self.sim_params, self.network_params)
+            plot_network_firing_rates(np.array([e_rate_0, e_rate_1]), self.sim_params, self.network_params)
 
         # Input firing rate plots
         if self.record_inputs:
