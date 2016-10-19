@@ -10,7 +10,7 @@ from perceptchoice.model.network import default_params, pyr_params, simulation_p
 from perceptchoice.model.virtual_subject import VirtualSubject
 
 
-def run_virtual_subjects(subj_ids, conditions, output_dir, behavioral_param_file, mu_0=40.0, refresh_rate=60*Hz,
+def run_virtual_subjects(subj_ids, conditions, output_dir, behavioral_param_file, wta_params,
                          continuous=True):
     """
     Runs a set of virtual subjects on the given conditions
@@ -37,8 +37,9 @@ def run_virtual_subjects(subj_ids, conditions, output_dir, behavioral_param_file
         beta=beta_bin+np.random.rand()*bin_width
 
         # Create virtual subject parameters - background freq from beta dist, resp threshold between 15 and 25Hz
-        wta_params=default_params(background_freq=(beta-161.08)/-.17, resp_threshold=18+np.random.uniform(4),
-                                  mu_0=mu_0, refresh_rate=refresh_rate)
+        wta_params.background_freq=(beta-161.08)/-.17
+        wta_params.resp_threshold=18+np.random.uniform(4)
+
         # Set initial input weights and modify NMDA recurrent
         pyramidal_params=pyr_params(w_nmda=0.145*nS, w_ampa_ext_correct=1.6*nS, w_ampa_ext_incorrect=0.9*nS)
 
@@ -145,7 +146,8 @@ def run_main_conditions(data_path, behavioral_params_file):
                                              i_dcs=0.5 * stim_intensity_max,
                                              dcs_start_time=0 * second, dcs_end_time=3 * second)
     }
-    run_virtual_subjects(range(20), conditions, data_path, behavioral_params_file)
+    wta_params=default_params()
+    run_virtual_subjects(range(20), conditions, data_path, behavioral_params_file, wta_params)
 
 
 def run_pyr_only_control_sim(data_path, behavioral_params_file):
@@ -167,7 +169,8 @@ def run_pyr_only_control_sim(data_path, behavioral_params_file):
                                              stim_end_time=2 * second, p_dcs=-1 * stim_intensity_max,
                                              i_dcs=0, dcs_start_time=0 * second, dcs_end_time=3 * second)
     }
-    run_virtual_subjects(range(20), conditions, data_path, behavioral_params_file)
+    wta_params=default_params()
+    run_virtual_subjects(range(20), conditions, data_path, behavioral_params_file, wta_params)
 
 
 def run_inh_only_control_sim(data_path, behavioral_params_file):
@@ -189,7 +192,8 @@ def run_inh_only_control_sim(data_path, behavioral_params_file):
                                              stim_end_time=2 * second, p_dcs=0, i_dcs=0.5 * stim_intensity_max,
                                              dcs_start_time=0 * second, dcs_end_time=3 * second)
     }
-    run_virtual_subjects(range(20), conditions, data_path, behavioral_params_file)
+    wta_params=default_params()
+    run_virtual_subjects(range(20), conditions, data_path, behavioral_params_file, wta_params)
 
 
 def run_uniform_stim_control_sim(data_path, behavioral_params_file):
@@ -213,7 +217,8 @@ def run_uniform_stim_control_sim(data_path, behavioral_params_file):
                                              i_dcs=-0.5 * stim_intensity_max,
                                              dcs_start_time=0 * second, dcs_end_time=3 * second)
     }
-    run_virtual_subjects(range(20), conditions, data_path, behavioral_params_file)
+    wta_params=default_params()
+    run_virtual_subjects(range(20), conditions, data_path, behavioral_params_file, wta_params)
 
 
 def run_mu_0_control_sim(mu_0, data_path, behavioral_params_file):
@@ -237,7 +242,8 @@ def run_mu_0_control_sim(mu_0, data_path, behavioral_params_file):
                                              i_dcs=0.5 * stim_intensity_max,
                                              dcs_start_time=0 * second, dcs_end_time=3 * second)
     }
-    run_virtual_subjects(range(20), conditions, data_path, behavioral_params_file, mu_0=mu_0)
+    wta_params=default_params(mu_0=mu_0)
+    run_virtual_subjects(range(20), conditions, data_path, behavioral_params_file, wta_params)
 
 
 def run_refresh_rate_control_sim(refresh_rate, data_path, behavioral_params_file):
@@ -261,7 +267,8 @@ def run_refresh_rate_control_sim(refresh_rate, data_path, behavioral_params_file
                                              i_dcs=0.5 * stim_intensity_max,
                                              dcs_start_time=0 * second, dcs_end_time=3 * second)
     }
-    run_virtual_subjects([16], conditions, data_path, behavioral_params_file, refresh_rate=refresh_rate*Hz)
+    wta_params=default_params(refresh_rate=refresh_rate*Hz)
+    run_virtual_subjects(range(20), conditions, data_path, behavioral_params_file, wta_params)
 
 
 def run_reinit_control_sim(data_path, behavioral_params_file):
@@ -285,7 +292,87 @@ def run_reinit_control_sim(data_path, behavioral_params_file):
                                              i_dcs=0.5 * stim_intensity_max,
                                              dcs_start_time=0 * second, dcs_end_time=3 * second)
     }
-    run_virtual_subjects(range(20), conditions, data_path, behavioral_params_file, continuous=False)
+    wta_params=default_params()
+    run_virtual_subjects(range(20), conditions, data_path, behavioral_params_file, wta_params, continuous=False)
+
+
+def run_no_mutual_inh_control_sim(data_path, behavioral_params_file):
+    # Trials per condition
+    trials_per_condition = 100
+    # Max stimulation intensity
+    stim_intensity_max = 0.75 * pA
+    # Stimulation conditions
+    conditions = {
+        'control': simulation_params(
+            ntrials=trials_per_condition,
+            trial_duration=3 * second,
+            stim_start_time=1 * second,
+            stim_end_time=2 * second
+        ),
+        'depolarizing': simulation_params(
+            ntrials=trials_per_condition,
+            trial_duration=3 * second,
+            stim_start_time=1 * second,
+            stim_end_time=2 * second,
+            p_dcs=stim_intensity_max,
+            i_dcs=-0.5 * stim_intensity_max,
+            dcs_start_time=0 * second,
+            dcs_end_time=3 * second
+        ),
+        'hyperpolarizing': simulation_params(
+            ntrials=trials_per_condition,
+            trial_duration=3 * second,
+            stim_start_time=1 * second,
+            stim_end_time=2 * second,
+            p_dcs=-1 * stim_intensity_max,
+            i_dcs=0.5 * stim_intensity_max,
+            dcs_start_time=0 * second,
+            dcs_end_time=3 * second
+        )
+    }
+    wta_params=default_params(p_e_i=0.0)
+    run_virtual_subjects(range(20), conditions, data_path, behavioral_params_file, wta_params)
+
+
+def run_iti_control_sim(iti, data_path, behavioral_params_file):
+    # Trials per condition
+    trials_per_condition = 100
+    # Max stimulation intensity
+    stim_intensity_max = 0.75 * pA
+    start_time=iti/2.0
+    end_time=start_time+1*second
+    duration=end_time+iti/2.0
+    # Stimulation conditions
+    conditions = {
+        'control': simulation_params(
+            ntrials=trials_per_condition,
+            trial_duration=duration,
+            stim_start_time=start_time,
+            stim_end_time=end_time
+        ),
+        'depolarizing': simulation_params(
+            ntrials=trials_per_condition,
+            trial_duration=duration,
+            stim_start_time=start_time,
+            stim_end_time=end_time,
+            p_dcs=stim_intensity_max,
+            i_dcs=-0.5 * stim_intensity_max,
+            dcs_start_time=0 * second,
+            dcs_end_time=duration
+        ),
+        'hyperpolarizing': simulation_params(
+            ntrials=trials_per_condition,
+            trial_duration=duration,
+            stim_start_time=start_time,
+            stim_end_time=end_time,
+            p_dcs=-1 * stim_intensity_max,
+            i_dcs=0.5 * stim_intensity_max,
+            dcs_start_time=0 * second,
+            dcs_end_time=duration
+        )
+    }
+    wta_params=default_params()
+    run_virtual_subjects(range(20), conditions, data_path, behavioral_params_file, wta_params)
 
 
 if __name__=='__main__':
