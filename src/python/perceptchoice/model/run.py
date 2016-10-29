@@ -1,13 +1,41 @@
 import os
 
-from brian import pA, second, nS, Hz
+from brian import pA, second, nS, Hz, ms
 import h5py
 import numpy as np
 import matplotlib.pyplot as plt
 
 from perceptchoice.model.monitor import SessionMonitor
-from perceptchoice.model.network import default_params, pyr_params, simulation_params
+from perceptchoice.model.network import default_params, pyr_params, simulation_params, AccumulatorNetwork
 from perceptchoice.model.virtual_subject import VirtualSubject
+
+
+def run_no_mutual_inh_virtual_subjects(subj_ids, conditions, output_dir, wta_params):
+    # Run each subject
+    for subj_id in subj_ids:
+        print('***** Running subject %d *****' % subj_id)
+        # network is more sensitive to background noise - need to use smaller range, wider operating range of firing rates
+        # Resp threshold has to vary with background noise
+        # maybe not choice hysteresis bc both pyramidal populations active - both bias the selection on next trial
+        # also - since both are active, more excitatory drive on interneurons, therefore more inhibition of pyramidal
+        # populations, rates decay faster
+        wta_params.background_freq=855+(870-855)*np.random.random()
+        mid_resp_threshold=1.1333*wta_params.background_freq-951.0
+        wta_params.resp_threshold=mid_resp_threshold+np.random.uniform(low=-2.0, high=2.0)
+
+        # Set initial input weights and modify NMDA recurrent
+        pyramidal_params=pyr_params(w_nmda=0.145*nS, w_ampa_ext_correct=1.6*nS, w_ampa_ext_incorrect=0.9*nS)
+
+        # Create a virtual subject
+        subject=VirtualSubject(subj_id, wta_params=wta_params, pyr_params=pyramidal_params)
+
+        # Run through each condition
+        for condition, sim_params in conditions.iteritems():
+            # Reinitialize state variables in subject network
+            subject.net.reinit(states=True)
+            # Run session
+            output_file=os.path.join(output_dir, 'subject.%d.%s.h5' % (subj_id,condition))
+            run_session(subject, condition, sim_params, output_file=output_file, continuous=True)
 
 
 def run_virtual_subjects(subj_ids, conditions, output_dir, behavioral_param_file, wta_params,
@@ -296,7 +324,7 @@ def run_reinit_control_sim(data_path, behavioral_params_file):
     run_virtual_subjects(range(20), conditions, data_path, behavioral_params_file, wta_params, continuous=False)
 
 
-def run_no_mutual_inh_control_sim(data_path, behavioral_params_file):
+def run_no_mutual_inh_control_sim(data_path):
     # Trials per condition
     trials_per_condition = 100
     # Max stimulation intensity
@@ -330,8 +358,8 @@ def run_no_mutual_inh_control_sim(data_path, behavioral_params_file):
             dcs_end_time=3 * second
         )
     }
-    wta_params=default_params(p_e_i=0.0)
-    run_virtual_subjects(range(20), conditions, data_path, behavioral_params_file, wta_params)
+    wta_params=default_params()
+    run_no_mutual_inh_virtual_subjects(range(20), conditions, data_path, wta_params)
 
 
 def run_iti_control_sim(iti, data_path, behavioral_params_file):
