@@ -7,7 +7,7 @@ from perceptchoice.model.network import default_params, pyr_params, inh_params, 
 
 class VirtualSubject:
     def __init__(self, subj_id, wta_params=default_params(), pyr_params=pyr_params(), inh_params=inh_params(),
-                 sim_params=simulation_params()):
+                 sim_params=simulation_params(), network_class=WTANetworkGroup):
         self.subj_id = subj_id
         self.wta_params = wta_params
         self.pyr_params = pyr_params
@@ -25,7 +25,7 @@ class VirtualSubject:
                 rates=self.wta_params.task_input_resting_rate, clock=self.simulation_clock))
 
         # Create WTA network
-        self.wta_network = WTANetworkGroup(params=self.wta_params, background_input=self.background_input,
+        self.wta_network = network_class(params=self.wta_params, background_input=self.background_input,
             task_inputs=self.task_inputs, pyr_params=self.pyr_params, inh_params=self.inh_params,
             clock=self.simulation_clock)
 
