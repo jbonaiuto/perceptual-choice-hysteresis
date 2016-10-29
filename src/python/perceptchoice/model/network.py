@@ -179,6 +179,7 @@ class WTANetworkGroup(NeuronGroup):
         for i in range(self.params.num_groups):
             subgroup_e=self.group_e.subgroup(int(self.params.f*self.e_size))
             self.groups_e.append(subgroup_e)
+        self.ns_e=self.group_e.subgroup(self.e_size-(self.params.num_groups*int(self.params.f*self.e_size)))
 
         # Initialize state variables
         self.vm = self.params.EL+randn(self.params.network_group_size)*mV
@@ -239,6 +240,56 @@ class WTANetworkGroup(NeuronGroup):
                     'g_ampa_x')
                 self.connections['t%d->e%d_ampa' % (i,1-i)].connect_one_to_one(weight=self.pyr_params.w_ampa_ext_incorrect,
                     delay=.5*ms)
+
+
+class AccumulatorNetwork(WTANetworkGroup):
+    def __init__(self, params=default_params, pyr_params=pyr_params(), inh_params=inh_params(), background_input=None,
+                 task_inputs=None, clock=defaultclock):
+        super(AccumulatorNetwork, self).__init__(params=params, pyr_params=pyr_params, inh_params=inh_params, background_input=background_input,
+            task_inputs=task_inputs, clock=clock)
+
+    def init_subpopulations(self):
+        super(AccumulatorNetwork, self).init_subpopulations()
+
+        # Input-specific sub-subpopulations
+        self.groups_i=[]
+        for i in range(self.params.num_groups):
+            subgroup_i=self.group_i.subgroup(int(self.i_size*.5))
+            self.groups_i.append(subgroup_i)
+
+    def init_connectivity(self, clock):
+        super(AccumulatorNetwork, self).init_connectivity(clock)
+
+        del self.connections['e->i_ampa']
+        del self.connections['e->i_nmda']
+        del self.connections['i->e_gabaa']
+        del self.connections['i->i_gabaa']
+
+        self.connections['e_ns->i_ampa']=init_connection(self.ns_e, self.group_i, 'g_ampa_r', self.inh_params.w_ampa_rec,
+            self.params.p_e_i, delay=.5*ms)
+        self.connections['e_ns->i_nmda']=init_connection(self.ns_e, self.group_i, 'g_nmda', self.inh_params.w_nmda,
+            self.params.p_e_i, delay=.5*ms)
+        # I -> E - inhibitory connections
+        self.connections['i->e_ns_gabaa']=init_connection(self.group_i, self.ns_e, 'g_gaba_a', self.pyr_params.w_gaba,
+            self.params.p_i_e, delay=.5*ms)
+
+        # Iterate over input groups
+        for i in range(self.params.num_groups):
+
+            # E -> I excitatory connections
+            self.connections['e%d->i%d_ampa' % (i,i)]=init_connection(self.groups_e[i], self.groups_i[i], 'g_ampa_r', self.inh_params.w_ampa_rec,
+                self.params.p_e_i, delay=.5*ms)
+            self.connections['e%d->i%d_nmda' % (i,i)]=init_connection(self.groups_e[i], self.groups_i[i], 'g_nmda', self.inh_params.w_nmda,
+                self.params.p_e_i, delay=.5*ms)
+
+
+            # I -> E - inhibitory connections
+            self.connections['i%d->e%d_gabaa' % (i,i)]=init_connection(self.groups_i[i], self.groups_e[i], 'g_gaba_a', self.pyr_params.w_gaba,
+                self.params.p_i_e, delay=.5*ms)
+
+            # I population - recurrent connections
+            self.connections['i%d->i%d_gabaa' % (i,i)]=init_connection(self.groups_i[i], self.groups_i[i], 'g_gaba_a', self.inh_params.w_gaba,
+                self.params.p_i_i, delay=.5*ms, allow_self_conn=False)
 
 
 def run_wta(wta_params, input_freq, sim_params, pyr_params=pyr_params(), inh_params=inh_params(),
