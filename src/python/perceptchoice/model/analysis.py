@@ -805,12 +805,13 @@ def plot_logistic_parameter_ratio(colors, condition_logistic_params):
 
 
 if __name__=='__main__':
+    data_dir='/data/pySBI/rdmd/virtual_subjects'
     subj_ids=range(20)
     virtual_subjects=[]
     for subj_idx in subj_ids:
-         virtual_subjects.append(read_subject_data('/data/pySBI/rdmd/virtual_subjects', subj_idx,
+         virtual_subjects.append(read_subject_data(data_dir, subj_idx,
                                                 ['control','depolarizing','hyperpolarizing']))
-    analyze_choice_hysteresis(virtual_subjects, output_dir='/data/pySBI/rdmd/virtual_subjects')
-    analyze_accuracy_rt(virtual_subjects, output_dir='/data/pySBI/rdmd/virtual_subjects')
-    analyze_bias(virtual_subjects, output_dir='/data/pySBI/rdmd/virtual_subjects')
+    analyze_choice_hysteresis(virtual_subjects, output_dir=data_dir)
+    analyze_accuracy_rt(virtual_subjects, output_dir=data_dir)
+    analyze_bias(virtual_subjects, output_dir=data_dir)
     plt.show()
