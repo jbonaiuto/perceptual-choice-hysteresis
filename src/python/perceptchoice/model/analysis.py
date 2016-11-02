@@ -72,13 +72,10 @@ def read_subject_data(data_dir, subj_id, conditions):
             stim_end_time=float(f_sim_params.attrs['stim_end_time'])*second,
             dt=float(f_sim_params.attrs['dt'])*second,
             ntrials=int(f_sim_params.attrs['ntrials']),
-            muscimol_amount=float(f_sim_params.attrs['muscimol_amount'])*siemens,
-            injection_site=int(f_sim_params.attrs['injection_site']),
             p_dcs=float(f_sim_params.attrs['p_dcs'])*amp,
             i_dcs=float(f_sim_params.attrs['i_dcs'])*amp,
             dcs_start_time=float(f_sim_params.attrs['dcs_start_time'])*second,
             dcs_end_time=float(f_sim_params.attrs['dcs_end_time'])*second,
-            plasticity=int(f_sim_params.attrs['plasticity'])
         )
 
         f_behav = f['behavior']
@@ -805,7 +802,8 @@ def plot_logistic_parameter_ratio(colors, condition_logistic_params):
 
 
 if __name__=='__main__':
-    data_dir='/data/pySBI/rdmd/virtual_subjects'
+    #data_dir='/data/pySBI/rdmd/virtual_subjects'
+    data_dir='/data/pySBI/rdmd/virtual_subjects_no_mutual_inh'
     subj_ids=range(20)
     virtual_subjects=[]
     for subj_idx in subj_ids:
