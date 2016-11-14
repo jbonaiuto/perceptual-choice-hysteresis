@@ -367,9 +367,9 @@ def run_iti_control_sim(iti, data_path, behavioral_params_file):
     trials_per_condition = 100
     # Max stimulation intensity
     stim_intensity_max = 0.75 * pA
-    start_time=iti/2.0
+    start_time=(iti/2.0)*ms
     end_time=start_time+1*second
-    duration=end_time+iti/2.0
+    duration=end_time+(iti/2.0)*ms
     # Stimulation conditions
     conditions = {
         'control': simulation_params(
