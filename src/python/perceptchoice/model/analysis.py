@@ -6,7 +6,7 @@ import h5py
 from matplotlib.mlab import normpdf
 from matplotlib.patches import Rectangle
 import numpy as np
-from scipy.stats import wilcoxon, norm
+from scipy.stats import wilcoxon, norm, f_oneway
 import matplotlib.pyplot as plt
 import pandas as pd
 from sklearn.linear_model import LinearRegression
@@ -14,7 +14,7 @@ import statsmodels.api as sm
 from perceptchoice.utils import FitSigmoid, mdm_outliers, FitWeibull, FitRT
 
 
-colors={
+stim_colors={
     'control': 'b',
     'depolarizing': 'r',
     'hyperpolarizing': 'g'
@@ -22,7 +22,15 @@ colors={
 
 coherences=[0.0320, 0.0640, 0.1280, 0.2560, 0.5120]
 
-conditions=['control','depolarizing','hyperpolarizing']
+stim_conditions=['control','depolarizing','hyperpolarizing']
+
+isi_conditions=[1500, 2000, 2500, 3500]
+isi_colors={
+    1500: '#005582',
+    2000: '#1287B4',
+    2500: '#3AAFDC',
+    3500: '#76EBFF'
+}
 
 def read_subject_data(data_dir, subj_id, conditions):
     subj_data={}
@@ -141,7 +149,7 @@ def analyze_bias(subjects, output_dir):
     condition_different_choice_biases={}
     for subject in subjects:
         subj_repeat_choice_biases, subj_different_choice_biases=analyze_subject_bias(subject)
-        for condition in conditions:
+        for condition in stim_conditions:
             if not condition in condition_repeat_choice_biases:
                 condition_repeat_choice_biases[condition]=[]
                 condition_different_choice_biases[condition]=[]
@@ -152,36 +160,36 @@ def analyze_bias(subjects, output_dir):
     ax=fig.add_subplot(2,1,1)
     cond_means=[]
     cond_stderr=[]
-    for condition in conditions:
+    for condition in stim_conditions:
         cond_means.append(np.mean(condition_repeat_choice_biases[condition]))
         cond_stderr.append(np.std(condition_repeat_choice_biases[condition])/np.sqrt(len(condition_repeat_choice_biases[condition])))
-    ind=np.arange(len(conditions))
+    ind=np.arange(len(stim_conditions))
     width=0.75
     rects=ax.bar(ind, cond_means, width, yerr=cond_stderr, error_kw=dict(ecolor='black'))
     for idx,rect in enumerate(rects):
-        rect.set_color(colors[conditions[idx]])
+        rect.set_color(stim_colors[stim_conditions[idx]])
     ax.set_ylim([0,2.5])
     ax.set_xlim([np.min(ind)-.1,np.max(ind)+width+.1])
     ax.set_ylabel('Bias')
     ax.set_xticks(ind+.5*width)
-    ax.set_xticklabels(conditions)
+    ax.set_xticklabels(stim_conditions)
 
     ax=fig.add_subplot(2,1,2)
     cond_means=[]
     cond_stderr=[]
-    for condition in conditions:
+    for condition in stim_conditions:
         cond_means.append(np.abs(np.mean(condition_different_choice_biases[condition])))
         cond_stderr.append(np.std(condition_different_choice_biases[condition])/np.sqrt(len(condition_different_choice_biases[condition])))
-    ind=np.arange(len(conditions))
+    ind=np.arange(len(stim_conditions))
     width=0.75
     rects=ax.bar(ind, cond_means, width, yerr=cond_stderr, error_kw=dict(ecolor='black'))
     for idx,rect in enumerate(rects):
-        rect.set_color(colors[conditions[idx]])
+        rect.set_color(stim_colors[stim_conditions[idx]])
     ax.set_xlim([np.min(ind)-.1,np.max(ind)+width+.1])
     ax.set_ylim([0,2.5])
     ax.set_ylabel('Bias')
     ax.set_xticks(ind+.5*width)
-    ax.set_xticklabels(conditions)
+    ax.set_xticklabels(stim_conditions)
 
     print('Repeat choice')
     for condition in ['depolarizing','hyperpolarizing']:
@@ -363,18 +371,18 @@ def analyze_subject_choice_hysteresis(subject):
     return condition_coherence_choices, condition_sigmoid_offsets, condition_logistic_params
 
 
-def analyze_accuracy_rt(subjects, output_dir):
+def analyze_accuracy_rt(subjects, output_dir, scaled_rt_ylim=[-0.2, 1.6]):
     condition_coherence_accuracy={}
     condition_coherence_rt={}
     condition_coherence_rt_diff={}
     condition_accuracy_thresh={}
     # For each subject
-    for subject in subjects:
+    for idx,subject in enumerate(subjects):
 
         subj_condition_coherence_accuracy, subj_condition_coherence_rt, subj_condition_coherence_rt_diff,\
             subj_condition_accuracy_thresh=analyze_subject_accuracy_rt(subject)
 
-        for condition in conditions:
+        for condition in stim_conditions:
             if not condition in condition_coherence_accuracy:
                 condition_coherence_accuracy[condition]={}
                 condition_coherence_rt[condition]={}
@@ -400,13 +408,13 @@ def analyze_accuracy_rt(subjects, output_dir):
                 condition_coherence_rt_diff[condition][coherence].append(subj_condition_coherence_rt_diff[condition][coherence])
 
     thresh_std={}
-    for condition in conditions:
+    for condition in stim_conditions:
         thresh_std[condition]=np.std(condition_accuracy_thresh[condition])/np.sqrt(len(subjects))
-    plot_choice_accuracy(colors, condition_coherence_accuracy, plot_err=True, thresh_std=thresh_std)
+    plot_choice_accuracy(stim_conditions, stim_colors, condition_coherence_accuracy, plot_err=True, thresh_std=thresh_std)
 
-    plot_choice_rt_scaled(colors, condition_coherence_rt)
+    plot_choice_rt_scaled(stim_conditions, stim_colors, condition_coherence_rt, ylim=scaled_rt_ylim)
 
-    plot_choice_rt_diff(colors, condition_coherence_rt_diff, plot_err=True)
+    plot_choice_rt_diff(stim_colors, condition_coherence_rt_diff, plot_err=True)
 
 
     out_file=file(os.path.join(output_dir,'accuracy.csv'),'w')
@@ -493,9 +501,96 @@ def analyze_accuracy_rt(subjects, output_dir):
     print('')
 
 
+def analyze_isi_choice_hysteresis(virtual_subjects, output_dir):
+    isi_coherence_choices={
+        'L*': {},
+        'R*': {}
+    }
+    isi_sigmoid_offsets={
+        'L*': {},
+        'R*': {}
+    }
+    isi_logistic_params={
+        'a0': {},
+        'a1': {},
+        'a2': {}
+    }
+
+    for isi,subjects in virtual_subjects.iteritems():
+        isi_coherence_choices['L*'][isi]={}
+        isi_coherence_choices['R*'][isi]={}
+        isi_sigmoid_offsets['L*'][isi]=[]
+        isi_sigmoid_offsets['R*'][isi]=[]
+        isi_logistic_params['a0'][isi]=[]
+        isi_logistic_params['a1'][isi]=[]
+        isi_logistic_params['a2'][isi]=[]
+
+        for subject in subjects:
+            subj_condition_coherence_choices, subj_condition_sigmoid_offsets, subj_condition_logistic_params=analyze_subject_choice_hysteresis(subject)
+
+            isi_sigmoid_offsets['L*'][isi].append(subj_condition_sigmoid_offsets['L*']['control'])
+            isi_sigmoid_offsets['R*'][isi].append(subj_condition_sigmoid_offsets['R*']['control'])
+
+            isi_logistic_params['a0'][isi].append(subj_condition_logistic_params['a0']['control'])
+            isi_logistic_params['a1'][isi].append(subj_condition_logistic_params['a1']['control'])
+            isi_logistic_params['a2'][isi].append(subj_condition_logistic_params['a2']['control'])
+
+            for coherence in subj_condition_coherence_choices['L*']['control']:
+                if not coherence in isi_coherence_choices['L*'][isi]:
+                    isi_coherence_choices['L*'][isi][coherence]=[]
+                isi_coherence_choices['L*'][isi][coherence].append(np.mean(subj_condition_coherence_choices['L*']['control'][coherence]))
+
+            for coherence in subj_condition_coherence_choices['R*']['control']:
+                if not coherence in isi_coherence_choices['R*'][isi]:
+                    isi_coherence_choices['R*'][isi][coherence]=[]
+                isi_coherence_choices['R*'][isi][coherence].append(np.mean(subj_condition_coherence_choices['R*']['control'][coherence]))
+
+    plot_indifference_hist(isi_conditions, isi_colors, isi_sigmoid_offsets, xlim=[-.2,.6], ylim=[0,27])
+
+    plot_choice_probability(2000, isi_colors, isi_coherence_choices)
+
+    plot_logistic_parameter_ratio(isi_conditions, isi_colors, 2000, isi_logistic_params, xlim=[-.1,0.35], ylim=[0,55])
+
+    out_file=file(os.path.join(output_dir,'indifference.csv'),'w')
+    out_file.write('VirtualSubjID')
+    for direction in ['L*','R*']:
+        for isi in isi_sigmoid_offsets[direction]:
+            out_file.write(',%s%d' % (direction,isi))
+    out_file.write('\n')
+    for subj_idx in range(len(isi_sigmoid_offsets['L*'][1500])):
+        out_file.write('%d' % (subj_idx+1))
+        for direction in ['L*','R*']:
+            for isi in isi_sigmoid_offsets[direction]:
+                out_file.write(',%.4f' % isi_sigmoid_offsets[direction][isi][subj_idx])
+        out_file.write('\n')
+    out_file.close()
+
+    out_file=file(os.path.join(output_dir,'logistic.csv'),'w')
+    out_file.write('VirtualSubjID')
+    for param in ['a1','a2']:
+        for isi in isi_logistic_params[param]:
+            out_file.write(',%s%d' % (param,isi))
+    out_file.write('\n')
+    for subj_idx in range(len(isi_logistic_params['a1'][1500])):
+        out_file.write('%d' % (subj_idx+1))
+        for param in ['a1','a2']:
+            for isi in isi_logistic_params[param]:
+                out_file.write(',%.4f' % isi_logistic_params[param][isi][subj_idx])
+        out_file.write('\n')
+    out_file.close()
+
+    sigmoid_offsets=[]
+    param_ratios=[]
+    for isi in virtual_subjects.keys():
+        sigmoid_offsets.append(np.array(isi_sigmoid_offsets['L*'][isi])-np.array(isi_sigmoid_offsets['R*'][isi]))
+        param_ratios.append(np.array(isi_logistic_params['a2'][isi]) / np.array(isi_logistic_params['a1'][isi]))
+    (f,p)=f_oneway(*sigmoid_offsets)
+    print('Indecision point: F=%.4f, p=%.4f' % (f,p))
+    (f,p)=f_oneway(*param_ratios)
+    print('Logistic regression: F=%.4f, p=%.4f' % (f,p))
 
 
-def analyze_choice_hysteresis(subjects, output_dir):
+def analyze_choice_hysteresis(subjects, output_dir, hysteresis_ylim=[0,30], logistic_ylim=[0,35]):
     condition_coherence_choices={
         'L*': {},
         'R*': {}
@@ -514,7 +609,7 @@ def analyze_choice_hysteresis(subjects, output_dir):
     for idx,subject in enumerate(subjects):
         subj_condition_coherence_choices, subj_condition_sigmoid_offsets, subj_condition_logistic_params=analyze_subject_choice_hysteresis(subject)
 
-        for condition in conditions:
+        for condition in stim_conditions:
             if not condition in condition_coherence_choices['L*']:
                 condition_coherence_choices['L*'][condition]={}
                 condition_coherence_choices['R*'][condition]={}
@@ -541,11 +636,11 @@ def analyze_choice_hysteresis(subjects, output_dir):
                     condition_coherence_choices['R*'][condition][coherence]=[]
                 condition_coherence_choices['R*'][condition][coherence].append(np.mean(subj_condition_coherence_choices['R*'][condition][coherence]))
 
-    plot_indifference_hist(colors, condition_sigmoid_offsets)
+    plot_indifference_hist(stim_conditions, stim_colors, condition_sigmoid_offsets, ylim=hysteresis_ylim)
 
-    plot_choice_probability(colors, condition_coherence_choices)
+    plot_choice_probability('control', stim_colors, condition_coherence_choices)
 
-    plot_logistic_parameter_ratio(colors, condition_logistic_params)
+    plot_logistic_parameter_ratio(stim_conditions, stim_colors, 'control', condition_logistic_params, ylim=logistic_ylim)
 
     out_file=file(os.path.join(output_dir,'indifference.csv'),'w')
     out_file.write('VirtualSubjID')
@@ -630,32 +725,31 @@ def analyze_choice_hysteresis(subjects, output_dir):
     print('')
 
 
-def plot_indifference_hist(colors, condition_sigmoid_offsets):
+def plot_indifference_hist(plot_conditions, plot_colors, condition_sigmoid_offsets, xlim=[-.2,.4], ylim=[0,30]):
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
     binwidth=0.03
-    lims=[-.2,.4]
-    xx=np.arange(lims[0],lims[1],0.001)
-    for condition in conditions:
+    xx=np.arange(xlim[0],xlim[1],0.001)
+    for condition in plot_conditions:
         diff=np.array(condition_sigmoid_offsets['L*'][condition])-np.array(condition_sigmoid_offsets['R*'][condition])
         bins=np.arange(min(diff), max(diff)+binwidth, binwidth)
         hist,edges=np.histogram(diff, bins=bins)
         center = (bins[:-1] + bins[1:]) / 2
-        ax.bar(center, hist/float(len(diff))*100.0, color=colors[condition], alpha=0.75, label=condition, width=binwidth)
+        ax.bar(center, hist/float(len(diff))*100.0, color=plot_colors[condition], alpha=0.75, label=condition, width=binwidth)
         (mu, sigma) = norm.fit(diff)
         y = normpdf(xx, mu, sigma)*binwidth*100.0
-        ax.plot(xx, y,'%s--' % colors[condition], linewidth=2)
-    ax.set_xlim(lims)
-    ax.set_ylim([0,30])
+        ax.plot(xx, y,'--', color=plot_colors[condition], linewidth=2)
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
     ax.set_xlabel('Left*-Right* Indifference')
     ax.set_ylabel('% subjects')
     ax.legend(loc='best')
 
 
-def plot_choice_accuracy(colors, condition_coherence_accuracy, plot_err=False, thresh_std=None):
+def plot_choice_accuracy(plot_conditions, plot_colors, condition_coherence_accuracy, plot_err=False, thresh_std=None):
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
-    for condition in conditions:
+    for condition in plot_conditions:
         coherences = sorted(condition_coherence_accuracy[condition].keys())
         mean_accuracy=[]
         stderr_accuracy=[]
@@ -666,15 +760,15 @@ def plot_choice_accuracy(colors, condition_coherence_accuracy, plot_err=False, t
         acc_fit = FitWeibull(coherences, mean_accuracy, guess=[0.0, 0.2], display=0)
         smoothInt = np.arange(.01, 1.0, 0.001)
         smoothResp = acc_fit.eval(smoothInt)
-        ax.semilogx(smoothInt, smoothResp, colors[condition], label=condition)
+        ax.semilogx(smoothInt, smoothResp, plot_colors[condition], label=condition)
         if plot_err:
-            ax.errorbar(coherences, mean_accuracy, yerr=stderr_accuracy, fmt='o%s' % colors[condition])
+            ax.errorbar(coherences, mean_accuracy, yerr=stderr_accuracy, fmt='o%s' % plot_colors[condition])
         else:
-            ax.plot(coherences, mean_accuracy, 'o%s' % colors[condition])
+            ax.plot(coherences, mean_accuracy, 'o%s' % plot_colors[condition])
         thresh=acc_fit.inverse(0.8)
-        ax.plot([thresh,thresh],[0.5,1],'--%s' % colors[condition])
+        ax.plot([thresh,thresh],[0.5,1],'--%s' % plot_colors[condition])
         if thresh_std is not None:
-            rect=Rectangle((thresh-.5*thresh_std[condition],0.5),thresh_std[condition], 0.5, alpha=0.25, facecolor=colors[condition], edgecolor='none')
+            rect=Rectangle((thresh-.5*thresh_std[condition],0.5),thresh_std[condition], 0.5, alpha=0.25, facecolor=plot_colors[condition], edgecolor='none')
             ax.add_patch(rect)
     ax.legend(loc='best')
     ax.set_xlim([0.01,1.0])
@@ -683,13 +777,13 @@ def plot_choice_accuracy(colors, condition_coherence_accuracy, plot_err=False, t
     ax.set_ylabel('% Correct')
 
 
-def plot_choice_rt_scaled(colors, condition_coherence_rt):
+def plot_choice_rt_scaled(plot_conditions, plot_colors, condition_coherence_rt, ylim=[-0.2, 1.6]):
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
     control_coherences=sorted(condition_coherence_rt['control'].keys())
     control_mean_rt=[np.mean(condition_coherence_rt['control'][x]) for x in control_coherences]
     scale=1/(np.max(control_mean_rt)-np.min(control_mean_rt))
-    for condition in conditions:
+    for condition in plot_conditions:
         coherences = sorted(condition_coherence_rt[condition].keys())
         mean_rt=[]
         stderr_rt=[]
@@ -699,10 +793,10 @@ def plot_choice_rt_scaled(colors, condition_coherence_rt):
         rt_fit = FitRT(coherences, mean_rt, guess=[1,1,1], display=0)
         smoothInt = np.arange(.01, 1.0, 0.001)
         smoothRT = rt_fit.eval(smoothInt)
-        ax.semilogx(smoothInt, smoothRT, colors[condition], label=condition)
-        ax.errorbar(coherences, mean_rt, yerr=stderr_rt,fmt='o%s' % colors[condition])
+        ax.semilogx(smoothInt, smoothRT, plot_colors[condition], label=condition)
+        ax.errorbar(coherences, mean_rt, yerr=stderr_rt,fmt='o%s' % plot_colors[condition])
     ax.set_xlim([0.01,1.0])
-    ax.set_ylim([-0.2, 1.6])
+    ax.set_ylim(ylim)
     ax.legend(loc='best')
     ax.set_xlabel('Coherence')
     ax.set_ylabel('RT')
@@ -737,73 +831,70 @@ def plot_choice_rt_diff(colors, condition_coherence_rt_diff, plot_err=False):
     ax.set_ylabel('RT Difference')
 
 
-def plot_choice_probability(colors, condition_coherence_choices):
+def plot_choice_probability(plot_condition, plot_colors, condition_coherence_choices):
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
-    condition='control'
-    left_coherences=sorted(condition_coherence_choices['L*'][condition].keys())
-    right_coherences=sorted(condition_coherence_choices['R*'][condition].keys())
+    left_coherences=sorted(condition_coherence_choices['L*'][plot_condition].keys())
+    right_coherences=sorted(condition_coherence_choices['R*'][plot_condition].keys())
     left_choice_probs = []
     right_choice_probs = []
     for coherence in left_coherences:
-        left_choice_probs.append(np.mean(condition_coherence_choices['L*'][condition][coherence]))
+        left_choice_probs.append(np.mean(condition_coherence_choices['L*'][plot_condition][coherence]))
     for coherence in right_coherences:
-        right_choice_probs.append(np.mean(condition_coherence_choices['R*'][condition][coherence]))
+        right_choice_probs.append(np.mean(condition_coherence_choices['R*'][plot_condition][coherence]))
     acc_fit = FitSigmoid(left_coherences, left_choice_probs, guess=[0.0, 0.2], display=0)
     smoothInt = np.arange(min(left_coherences), max(left_coherences), 0.001)
     smoothResp = acc_fit.eval(smoothInt)
-    ax.plot(smoothInt, smoothResp, '--%s' % colors[condition], label='Left*')
-    ax.plot(left_coherences, left_choice_probs, 'o%s' % colors[condition])
+    ax.plot(smoothInt, smoothResp, '--', color=plot_colors[plot_condition], label='Left*')
+    ax.plot(left_coherences, left_choice_probs, 'o', color=plot_colors[plot_condition])
     acc_fit = FitSigmoid(right_coherences, right_choice_probs, guess=[0.0, 0.2], display=0)
     smoothInt = np.arange(min(right_coherences), max(right_coherences), 0.001)
     smoothResp = acc_fit.eval(smoothInt)
-    ax.plot(smoothInt, smoothResp, colors[condition], label='Right*')
-    ax.plot(right_coherences, right_choice_probs, 'o%s' % colors[condition])
+    ax.plot(smoothInt, smoothResp, color=plot_colors[plot_condition], label='Right*')
+    ax.plot(right_coherences, right_choice_probs, 'o', color=plot_colors[plot_condition])
     ax.legend(loc='best')
     ax.set_xlabel('Coherence')
     ax.set_ylabel('% of Right Choices')
 
 
-def plot_logistic_parameter_ratio(colors, condition_logistic_params):
+def plot_logistic_parameter_ratio(plot_conditions, plot_colors, control_condition, condition_logistic_params,
+                                  xlim=[-.1,.2], ylim=[0,35]):
     fig=plt.figure()
     ax = fig.add_subplot(1, 1, 1)
     xx=np.arange(-.512,.512,.001)
-    condition='control'
-    mean_a0=np.mean(condition_logistic_params['a0'][condition])
-    mean_a1=np.mean(condition_logistic_params['a1'][condition])
-    mean_a2=np.mean(condition_logistic_params['a2'][condition])
+    mean_a0=np.mean(condition_logistic_params['a0'][control_condition])
+    mean_a1=np.mean(condition_logistic_params['a1'][control_condition])
+    mean_a2=np.mean(condition_logistic_params['a2'][control_condition])
     yy_r=1/(1+np.exp(-(mean_a0+mean_a1*xx+mean_a2*1)))
     yy_l=1/(1+np.exp(-(mean_a0+mean_a1*xx+mean_a2*-1)))
-    ax.plot(xx,yy_l,'%s--' % colors[condition], linewidth=2, label='Left*')
-    ax.plot(xx,yy_r,colors[condition], linewidth=2, label='Right*')
+    ax.plot(xx,yy_l,'--', color=plot_colors[control_condition], linewidth=2, label='Left*')
+    ax.plot(xx,yy_r,plot_colors[control_condition], linewidth=2, label='Right*')
     ax.legend(loc='best')
     ax.set_xlabel('coherence')
     ax.set_ylabel('P(R)')
 
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
-    lims=[-.1,.2]
-    xx=np.arange(lims[0],lims[1],0.001)
+    xx=np.arange(xlim[0],xlim[1],0.001)
     binwidth=.02
-    for condition in conditions:
+    for condition in plot_conditions:
         ratio=np.array(condition_logistic_params['a2'][condition]) / np.array(condition_logistic_params['a1'][condition])
         bins=np.arange(min(ratio), max(ratio) + binwidth, binwidth)
         hist,edges=np.histogram(ratio, bins=bins)
         center = (bins[:-1] + bins[1:]) / 2
-        ax.bar(center, hist/float(len(ratio))*100.0, color=colors[condition], alpha=0.75, label=condition, width=binwidth)
+        ax.bar(center, hist/float(len(ratio))*100.0, color=plot_colors[condition], alpha=0.75, label=condition, width=binwidth)
         (mu, sigma) = norm.fit(ratio)
         y = normpdf(xx, mu, sigma)*binwidth*100.0
-        ax.plot(xx, y, '%s--' % colors[condition], linewidth=2)
+        ax.plot(xx, y, '--', color=plot_colors[condition], linewidth=2)
     ax.legend(loc='best')
-    ax.set_xlim(lims)
-    ax.set_ylim([0, 35])
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
     ax.set_xlabel('a2/a1')
     ax.set_ylabel('% subjects')
 
 
 if __name__=='__main__':
-    #data_dir='/data/pySBI/rdmd/virtual_subjects'
-    data_dir='/data/pySBI/rdmd/virtual_subjects_no_mutual_inh'
+    data_dir='/data/pySBI/rdmd/virtual_subjects'
     subj_ids=range(20)
     virtual_subjects=[]
     for subj_idx in subj_ids:
@@ -812,4 +903,21 @@ if __name__=='__main__':
     analyze_choice_hysteresis(virtual_subjects, output_dir=data_dir)
     analyze_accuracy_rt(virtual_subjects, output_dir=data_dir)
     analyze_bias(virtual_subjects, output_dir=data_dir)
+    plt.show()
+
+
+    isi_subjects={
+        1500: [],
+        2000: [],
+        2500: [],
+        3500: []
+    }
+    for isi in [1500,2500,3500]:
+        isi_dir='/data/pySBI/rdmd/isi_%d' % isi
+        for subj_idx in range(20):
+            isi_subjects[isi].append(read_subject_data(isi_dir, subj_idx, ['control']))
+    isi_dir='/data/pySBI/rdmd/virtual_subjects'
+    for subj_idx in range(20):
+        isi_subjects[2000].append(read_subject_data(isi_dir, subj_idx, ['control']))
+    analyze_isi_choice_hysteresis(isi_subjects, '/data/pySBI/rdmd/isi')
     plt.show()
