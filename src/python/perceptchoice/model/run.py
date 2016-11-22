@@ -16,9 +16,6 @@ def run_accumulator_virtual_subjects(subj_ids, conditions, output_dir, wta_param
         print('***** Running subject %d *****' % subj_id)
         # network is more sensitive to background noise - need to use smaller range, wider operating range of firing rates
         # Resp threshold has to vary with background noise
-        # maybe not choice hysteresis bc both pyramidal populations active - both bias the selection on next trial
-        # also - since both are active, more excitatory drive on interneurons, therefore more inhibition of pyramidal
-        # populations, rates decay faster
         wta_params.background_freq=855+(870-855)*np.random.random()
         mid_resp_threshold=wta_params.background_freq-835.0
         wta_params.resp_threshold=mid_resp_threshold+np.random.uniform(low=-1.0, high=1.0)
