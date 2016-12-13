@@ -10,24 +10,21 @@ from perceptchoice.model.network import default_params, pyr_params, simulation_p
 from perceptchoice.model.virtual_subject import VirtualSubject
 
 
-def run_no_mutual_inh_virtual_subjects(subj_ids, conditions, output_dir, wta_params):
+def run_accumulator_virtual_subjects(subj_ids, conditions, output_dir, wta_params):
     # Run each subject
     for subj_id in subj_ids:
         print('***** Running subject %d *****' % subj_id)
         # network is more sensitive to background noise - need to use smaller range, wider operating range of firing rates
         # Resp threshold has to vary with background noise
-        # maybe not choice hysteresis bc both pyramidal populations active - both bias the selection on next trial
-        # also - since both are active, more excitatory drive on interneurons, therefore more inhibition of pyramidal
-        # populations, rates decay faster
         wta_params.background_freq=855+(870-855)*np.random.random()
-        mid_resp_threshold=1.1333*wta_params.background_freq-951.0
-        wta_params.resp_threshold=mid_resp_threshold+np.random.uniform(low=-2.0, high=2.0)
+        mid_resp_threshold=wta_params.background_freq-835.0
+        wta_params.resp_threshold=mid_resp_threshold+np.random.uniform(low=-1.0, high=1.0)
 
         # Set initial input weights and modify NMDA recurrent
         pyramidal_params=pyr_params(w_nmda=0.145*nS, w_ampa_ext_correct=1.6*nS, w_ampa_ext_incorrect=0.9*nS)
 
         # Create a virtual subject
-        subject=VirtualSubject(subj_id, wta_params=wta_params, pyr_params=pyramidal_params)
+        subject=VirtualSubject(subj_id, wta_params=wta_params, pyr_params=pyramidal_params, network_class=AccumulatorNetwork)
 
         # Run through each condition
         for condition, sim_params in conditions.iteritems():
@@ -97,7 +94,7 @@ def run_session(subject, condition, sim_params, output_file=None, plot=False, co
     session_monitor=SessionMonitor(subject.wta_network, sim_params, conv_window=40,
         record_firing_rates=True)
 
-    # Run on six coherence levels
+    # Run on five coherence levels
     coherence_levels=[0.032, .064, .128, .256, .512]
     # Trials per coherence level
     trials_per_level=20
@@ -324,7 +321,7 @@ def run_reinit_control_sim(data_path, behavioral_params_file):
     run_virtual_subjects(range(20), conditions, data_path, behavioral_params_file, wta_params, continuous=False)
 
 
-def run_no_mutual_inh_control_sim(data_path):
+def run_accumulator_control_sim(data_path):
     # Trials per condition
     trials_per_condition = 100
     # Max stimulation intensity
@@ -359,17 +356,17 @@ def run_no_mutual_inh_control_sim(data_path):
         )
     }
     wta_params=default_params()
-    run_no_mutual_inh_virtual_subjects(range(20), conditions, data_path, wta_params)
+    run_accumulator_virtual_subjects(range(20), conditions, data_path, wta_params)
 
 
-def run_iti_control_sim(iti, data_path, behavioral_params_file):
+def run_isi_control_sim(isi, data_path, behavioral_params_file):
     # Trials per condition
     trials_per_condition = 100
     # Max stimulation intensity
     stim_intensity_max = 0.75 * pA
-    start_time=(iti/2.0)*ms
+    start_time=(isi/2.0)*ms
     end_time=start_time+1*second
-    duration=end_time+(iti/2.0)*ms
+    duration=end_time+(isi/2.0)*ms
     # Stimulation conditions
     conditions = {
         'control': simulation_params(
