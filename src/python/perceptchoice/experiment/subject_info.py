@@ -9,7 +9,8 @@ LEFT=180
 RIGHT=0
 
 coherences=[0.0320, 0.0640, 0.1280, 0.2560, 0.5120]
-conditions=['ShamPreCathode','Cathode','ShamPreAnode','Anode']
+stim_conditions=['ShamPreCathode','Cathode','ShamPreAnode','Anode']
+isi_conditions=['low','high']
 
 subject_sessions={
     '1': [

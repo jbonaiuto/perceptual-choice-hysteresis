@@ -5,10 +5,10 @@ from matplotlib.patches import Rectangle
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
-from scipy.stats import wilcoxon, norm
+from scipy.stats import wilcoxon, norm, mannwhitneyu
 from sklearn.linear_model import LinearRegression
 import matplotlib.pyplot as plt
-from perceptchoice.experiment.subject_info import conditions, read_isi_subjects, read_subjects
+from perceptchoice.experiment.subject_info import stim_conditions, read_isi_subjects, read_subjects, isi_conditions
 from perceptchoice.utils import FitSigmoid, FitRT, FitWeibull
 
 stim_colors={
@@ -282,7 +282,6 @@ def analyze_isi_choice_hysteresis(subjects, output_dir):
     """
     Analyze choice hysteresis of all subjects
     """
-    isi_conditions=['low','high']
     # Map of last response (L or R) - condition - coherence - average choice for each subject
     isi_coherence_choices={
         'L*': {
@@ -347,9 +346,9 @@ def analyze_isi_choice_hysteresis(subjects, output_dir):
                 isi_coherence_choices['R*'][isi][coherence].append(np.mean(subj_isi_coherence_choices['R*'][isi][coherence]))
 
     # Plot histograms
-    plot_indecision_hist(isi_conditions, isi_colors, isi_sigmoid_offsets, xlim=[-.15,.35], ylim=[0,35])
+    plot_indecision_hist(isi_conditions, isi_colors, isi_sigmoid_offsets, xlim=[-.2,.6], ylim=[0,35])
 
-    plot_logistic_parameter_ratio(isi_conditions, isi_colors, isi_logistic_params, xlim=[-0.1,0.2],ylim=[0,35])
+    plot_logistic_parameter_ratio(isi_conditions, isi_colors, isi_logistic_params, xlim=[-0.1,0.35],ylim=[0,35])
 
     # Output indecision point data (sigmoid offsets)
     output_file=file(os.path.join(output_dir,'isi_indecision.csv'),'w')
@@ -608,7 +607,7 @@ def analyze_accuracy_rt(subjects, output_dir):
             subj_condition_accuracy_thresh=analyze_subject_accuracy_rt(subject)
 
         # Iterate over conditions
-        for condition in conditions:
+        for condition in stim_conditions:
 
             # Init maps
             if not condition in condition_coherence_accuracy:
@@ -642,17 +641,17 @@ def analyze_accuracy_rt(subjects, output_dir):
 
     # Compute accuracy threshold spread for each condition
     thresh_std={}
-    for condition in conditions:
+    for condition in stim_conditions:
         thresh_std[condition]=np.std(condition_accuracy_thresh[condition])/np.sqrt(len(subjects))
 
     # Generate plots
     # One figure for each stimulation condition
     for cond_idx, stim_condition in enumerate(['Anode', 'Cathode']):
         sham_condition='ShamPre%s' % stim_condition
-        stim_conditions=[sham_condition, stim_condition]
-        plot_choice_accuracy(stim_conditions, stim_colors, condition_coherence_accuracy, thresh_std=thresh_std)
+        conditions=[sham_condition, stim_condition]
+        plot_choice_accuracy(conditions, stim_colors, condition_coherence_accuracy, thresh_std=thresh_std)
 
-        plot_choice_rt_scaled(stim_conditions, stim_colors, sham_condition, condition_coherence_rt)
+        plot_choice_rt_scaled(conditions, stim_colors, sham_condition, condition_coherence_rt)
 
     plot_choice_rt_diff(['Anode','Cathode'],stim_colors, condition_coherence_rt_diff)
 
@@ -774,7 +773,7 @@ def analyze_choice_hysteresis(subjects, output_dir):
         subj_condition_coherence_choices, subj_condition_sigmoid_offsets, subj_condition_logistic_params=analyze_subject_choice_hysteresis(subject)
 
         # For each condition
-        for condition in conditions:
+        for condition in stim_conditions:
 
             # Init maps
             if not condition in condition_coherence_choices['L*']:
@@ -808,9 +807,9 @@ def analyze_choice_hysteresis(subjects, output_dir):
     # Plot histograms
     # One plot for each stimulation condition
     for cond_idx, stim_condition in enumerate(['Anode', 'Cathode']):
-        stim_conditions=['ShamPre%s' % stim_condition, stim_condition]
-        plot_indecision_hist(stim_conditions, stim_colors, condition_sigmoid_offsets)
-        plot_logistic_parameter_ratio(stim_conditions, stim_colors, condition_logistic_params)
+        conditions=['ShamPre%s' % stim_condition, stim_condition]
+        plot_indecision_hist(conditions, stim_colors, condition_sigmoid_offsets)
+        plot_logistic_parameter_ratio(conditions, stim_colors, condition_logistic_params)
 
     # Output indecision point data (sigmoid offsets)
     output_file=file(os.path.join(output_dir,'indecision.csv'),'w')
@@ -1068,16 +1067,120 @@ def plot_indecision_hist(plot_conditions, plot_colors, condition_sigmoid_offsets
     ax.set_ylabel('% subjects')
     ax.legend(loc='best')
 
+def compare_stim_isi_hysteresis(stim_subjects, isi_subjects):
+    # Map of last response (L or R) - condition - coherence - sigmoid offset of each subject
+    stim_condition_sigmoid_offsets={
+        'L*': {},
+        'R*': {}
+    }
+    # Map of logistic parameter (a1 or a2) - condition - parameter value for each subject
+    stim_condition_logistic_params={
+        'a1': {},
+        'a2': {}
+    }
+
+    # For each subject
+    for subj_id in stim_subjects:
+        subject=stim_subjects[subj_id]
+        # Get choices, sigmoid offsets, logistic params
+        subj_condition_coherence_choices, subj_condition_sigmoid_offsets, subj_condition_logistic_params=analyze_subject_choice_hysteresis(subject)
+
+        # For each condition
+        for condition in stim_conditions:
+
+            # Init maps
+            if not condition in stim_condition_sigmoid_offsets['L*']:
+                stim_condition_sigmoid_offsets['L*'][condition]=[]
+                stim_condition_sigmoid_offsets['R*'][condition]=[]
+                stim_condition_logistic_params['a1'][condition]=[]
+                stim_condition_logistic_params['a2'][condition]=[]
+
+            # Update sigmoid offsets
+            stim_condition_sigmoid_offsets['L*'][condition].append(subj_condition_sigmoid_offsets['L*'][condition])
+            stim_condition_sigmoid_offsets['R*'][condition].append(subj_condition_sigmoid_offsets['R*'][condition])
+
+            # Update logistic params
+            stim_condition_logistic_params['a1'][condition].append(subj_condition_logistic_params['a1'][condition])
+            stim_condition_logistic_params['a2'][condition].append(subj_condition_logistic_params['a2'][condition])
+
+    # Map of last response (L or R) - condition - coherence - sigmoid offset of each subject
+    isi_sigmoid_offsets={
+        'L*': {
+            'low':[],
+            'high':[]
+        },
+        'R*': {
+            'low':[],
+            'high':[]
+        }
+    }
+    # Map of logistic parameter (a1 or a2) - condition - parameter value for each subject
+    isi_logistic_params={
+        'a1': {
+            'low':[],
+            'high':[]
+        },
+        'a2': {
+            'low':[],
+            'high':[]
+        }
+    }
+
+    # For each subject
+    for subj_id in isi_subjects:
+        subject=isi_subjects[subj_id]
+        # Get choices, sigmoid offsets, logistic params
+        subj_isi_coherence_choices, subj_isi_sigmoid_offsets, subj_isi_logistic_params=analyze_subject_isi_choice_hysteresis(subject)
+
+        # For each condition
+        for isi in isi_conditions:
+
+            # Update sigmoid offsets
+            isi_sigmoid_offsets['L*'][isi].append(subj_isi_sigmoid_offsets['L*'][isi])
+            isi_sigmoid_offsets['R*'][isi].append(subj_isi_sigmoid_offsets['R*'][isi])
+
+            # Update logistic params
+            isi_logistic_params['a1'][isi].append(subj_isi_logistic_params['a1'][isi])
+            isi_logistic_params['a2'][isi].append(subj_isi_logistic_params['a2'][isi])
+
+    indec_results={
+        'sham_anode': {},
+        'sham_cathode': {},
+        }
+    (indec_results['sham_anode']['U'],indec_results['sham_anode']['p'])=mannwhitneyu(np.array(stim_condition_sigmoid_offsets['L*']['ShamPreAnode'])-np.array(stim_condition_sigmoid_offsets['R*']['ShamPreAnode']),np.array(isi_sigmoid_offsets['L*']['low'])-np.array(isi_sigmoid_offsets['R*']['low']))
+    (indec_results['sham_cathode']['U'],indec_results['sham_cathode']['p'])=mannwhitneyu(np.array(stim_condition_sigmoid_offsets['L*']['ShamPreCathode'])-np.array(stim_condition_sigmoid_offsets['R*']['ShamPreCathode']),np.array(isi_sigmoid_offsets['L*']['low'])-np.array(isi_sigmoid_offsets['R*']['low']))
+    print('Indecision Points')
+    for condition, results in indec_results.iteritems():
+        print('%s: U=%.4f, p=%.4f' % (condition, results['U'], results['p']))
+    print('')
+    # Run stats on logistic parameters
+    log_results={
+        'sham_anode': {},
+        'sham_cathode': {},
+        }
+    sham_anode_ratio=np.array(stim_condition_logistic_params['a2']['ShamPreAnode'])/np.array(stim_condition_logistic_params['a1']['ShamPreAnode'])
+    sham_cathode_ratio=np.array(stim_condition_logistic_params['a2']['ShamPreCathode'])/np.array(stim_condition_logistic_params['a1']['ShamPreCathode'])
+    isi_ratio=np.array(isi_logistic_params['a2']['low'])/np.array(isi_logistic_params['a1']['low'])
+    (log_results['sham_anode']['U'],log_results['sham_anode']['p'])=mannwhitneyu(sham_anode_ratio,isi_ratio)
+    (log_results['sham_cathode']['U'],log_results['sham_cathode']['p'])=mannwhitneyu(sham_cathode_ratio,isi_ratio)
+
+    print('Logistic Regression')
+    for condition, results in log_results.iteritems():
+        print('%s: U=%.4f, p=%.4f' % (condition, results['U'],results['p']))
+
 if __name__=='__main__':
     print('*** Main analysis ***')
     data_dir='../../../rdmd/data/stim'
-    subjects=read_subjects(data_dir)
-    analyze_choice_hysteresis(subjects, data_dir)
-    analyze_accuracy_rt(subjects, data_dir)
+    stim_subjects=read_subjects(data_dir)
+    analyze_choice_hysteresis(stim_subjects, data_dir)
+    analyze_accuracy_rt(stim_subjects, data_dir)
 
     print('\n*** ISI analysis ***')
     data_dir='../../../rdmd/data/isi'
-    subjects=read_isi_subjects(data_dir)
-    analyze_isi_choice_hysteresis(subjects, data_dir)
-    analyze_isi_accuracy_rt(subjects, data_dir)
+    isi_subjects=read_isi_subjects(data_dir)
+    analyze_isi_choice_hysteresis(isi_subjects, data_dir)
+    analyze_isi_accuracy_rt(isi_subjects, data_dir)
     plt.show()
+
+    print('\n*** Compare ISI analysis ***')
+    compare_stim_isi_hysteresis(stim_subjects, isi_subjects)
