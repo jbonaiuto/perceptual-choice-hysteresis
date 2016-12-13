@@ -24,12 +24,14 @@ coherences=[0.0320, 0.0640, 0.1280, 0.2560, 0.5120]
 
 stim_conditions=['control','depolarizing','hyperpolarizing']
 
-isi_conditions=[1500, 2000, 2500, 3500]
+isi_conditions=[1500, 2000, 2500, 3500, 5000]
 isi_colors={
-    1500: '#005582',
-    2000: '#1287B4',
-    2500: '#3AAFDC',
-    3500: '#76EBFF'
+    1500: '#0038FF',
+    2000: '#3C67FF',
+    2500: '#6B8CFF',
+    3500: '#8DA5FF',
+    5000: '#B2C3FF'
+
 }
 
 def read_subject_data(data_dir, subj_id, conditions):
@@ -910,9 +912,10 @@ if __name__=='__main__':
         1500: [],
         2000: [],
         2500: [],
-        3500: []
+        3500: [],
+        5000: [],
     }
-    for isi in [1500,2500,3500]:
+    for isi in [1500,2500,3500,5000]:
         isi_dir='/data/pySBI/rdmd/isi_%d' % isi
         for subj_idx in range(20):
             isi_subjects[isi].append(read_subject_data(isi_dir, subj_idx, ['control']))
